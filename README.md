@@ -1,31 +1,26 @@
-# TekAttend
+# TekAttend backend auth patch
 
-Monorepo inicial do **TekAttend by Tekforge**.
+## Conteúdo
+- signup de aluno
+- login JWT
+- `/auth/me`
+- solicitação de perfil professor
+- listagem/aprovação/negação por admin
+- bootstrap opcional do primeiro admin
 
-## Estrutura
-- `backend/` API FastAPI
-- `web/` frontend React + Vite
-- `infra/` OpenTofu
-- `.github/workflows/` CI/CD
-- `docs/` documentação funcional e técnica
+## Variáveis novas
+- `JWT_ALGORITHM`
+- `JWT_EXPIRE_MINUTES`
+- `ADMIN_BOOTSTRAP_USERNAME`
+- `ADMIN_BOOTSTRAP_EMAIL`
+- `ENABLE_ADMIN_BOOTSTRAP`
 
-## Primeiros passos
-
-### Backend
-```bash
-cd backend
-python -m venv .venv
-. .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
-
-### Web
-```bash
-cd web
-npm install
-npm run dev
-```
-
-## Deploy
-O deploy do backend usa GitHub Actions + Workload Identity Federation + Cloud Run.
+## Fluxo sugerido
+1. Copiar a pasta `backend/` para o repo
+2. Commitar e dar push
+3. Esperar deploy
+4. Popular secrets/variáveis
+5. Fazer bootstrap do admin temporariamente com:
+   - `ENABLE_ADMIN_BOOTSTRAP=true`
+   - `POST /admin/bootstrap?password=<ADMIN_BOOTSTRAP_PASSWORD>`
+6. Desligar bootstrap depois
