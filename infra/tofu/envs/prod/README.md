@@ -1,7 +1,9 @@
-# Infra / OpenTofu
+# OpenTofu - prod
 
-Este diretório é o esqueleto inicial para a futura infra declarativa do TekAttend.
+Base inicial do ambiente `prod` do TekAttend.
 
-Sugestão:
-- usar `modules/` para componentes reutilizáveis
-- usar `envs/prod/` para a composição do ambiente de produção
+Próximo passo recomendado:
+- providers
+- variables
+- backend de state remoto
+- módulos para Cloud Run, buckets, IAM e Artifact Registry

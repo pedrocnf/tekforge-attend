@@ -1,35 +1,31 @@
-# TekAttend bootstrap
+# TekAttend
 
-Bootstrap inicial do projeto **TekAttend** para o repositório **pedrocnf/tekforge-attend**.
+Monorepo inicial do **TekAttend by Tekforge**.
 
-## Valores pré-configurados
-- Projeto GCP: `tekforge-attend`
-- Número do projeto: `772785199121`
-- Billing account: `018CCA-9AF2D4-93B4FA`
-- Região padrão: `us-central1`
-- Repositório GitHub: `pedrocnf/tekforge-attend`
+## Estrutura
+- `backend/` API FastAPI
+- `web/` frontend React + Vite
+- `infra/` OpenTofu
+- `.github/workflows/` CI/CD
+- `docs/` documentação funcional e técnica
 
-## Scripts principais
-- `scripts/bootstrap/bootstrap-gcp.ps1`
-- `scripts/bootstrap/bootstrap-github.ps1`
+## Primeiros passos
 
-## Uso rápido
-
-```powershell
-./scripts/bootstrap/bootstrap-gcp.ps1 -CreateGithubVariables
+### Backend
+```bash
+cd backend
+python -m venv .venv
+. .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
 ```
 
-## O que o bootstrap faz
-- ativa APIs
-- cria service accounts
-- cria Artifact Registry
-- cria buckets
-- cria secrets
-- cria Workload Identity Federation para GitHub Actions
-- opcionalmente grava GitHub Variables
-
-## Secrets que ainda precisam de valor
-```powershell
-echo 'SEU_JWT_AQUI' | gcloud secrets versions add tekattend-jwt-secret --data-file=-
-echo 'SENHA_ADMIN_INICIAL' | gcloud secrets versions add tekattend-admin-bootstrap-password --data-file=-
+### Web
+```bash
+cd web
+npm install
+npm run dev
 ```
+
+## Deploy
+O deploy do backend usa GitHub Actions + Workload Identity Federation + Cloud Run.

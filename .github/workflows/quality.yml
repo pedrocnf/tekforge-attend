@@ -1,12 +1,12 @@
 name: quality
 
 on:
-  pull_request:
   push:
     branches: [main, develop]
+  pull_request:
 
 jobs:
-  backend:
+  backend-smoke:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -16,15 +16,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install backend deps
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      - name: Smoke check backend tree
-        run: |
-          test -f Dockerfile || (echo "backend/Dockerfile não encontrado" && exit 1)
+          pip install -r requirements.txt
+      - name: Import check
+        run: python -c "from app.main import app; print(app.title)"
 
-  web:
+  web-smoke:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -34,20 +33,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: Install web deps
-        run: |
-          if [ -f package.json ]; then npm ci || npm install; else echo "package.json não encontrado ainda"; fi
-      - name: Build web if possible
-        run: |
-          if [ -f package.json ]; then npm run build --if-present; fi
-
-  mobile:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: mobile
-    steps:
-      - uses: actions/checkout@v4
-      - name: Check mobile folder
-        run: |
-          test -f pubspec.yaml || (echo "mobile/pubspec.yaml não encontrado ainda" && exit 0)
+      - name: Install
+        run: npm install
+      - name: Build
+        run: npm run build
