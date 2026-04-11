@@ -1,0 +1,71 @@
+# TekAttend - comandos Windows PowerShell
+
+Set-ExecutionPolicy -Scope Process Bypass
+
+$PROJECT_ID="tekforge-attend"
+$PROJECT_NUMBER="772785199121"
+$REGION="us-central1"
+$REPO="pedrocnf/tekforge-attend"
+$DEPLOYER_SA="github-actions-deployer@$PROJECT_ID.iam.gserviceaccount.com"
+$RUNTIME_SA="tekattend-runtime@$PROJECT_ID.iam.gserviceaccount.com"
+$POOL_ID="github-pool"
+$PROVIDER_ID="github-provider"
+$ARTIFACT_REGISTRY="tekattend-artifacts"
+$ASSETS_BUCKET="$PROJECT_ID-assets"
+$EXPORTS_BUCKET="$PROJECT_ID-exports"
+$POOL_RESOURCE="projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/$POOL_ID"
+
+gcloud config set project $PROJECT_ID
+
+gcloud services enable run.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com iam.googleapis.com iamcredentials.googleapis.com sts.googleapis.com cloudresourcemanager.googleapis.com firebase.googleapis.com firestore.googleapis.com storage.googleapis.com cloudbuild.googleapis.com compute.googleapis.com --project $PROJECT_ID
+
+gcloud iam service-accounts create github-actions-deployer --display-name "GitHub Actions Deployer"
+gcloud iam service-accounts create tekattend-runtime --display-name "TekAttend Runtime"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$DEPLOYER_SA" --role="roles/run.admin"
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$DEPLOYER_SA" --role="roles/iam.serviceAccountUser"
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$DEPLOYER_SA" --role="roles/artifactregistry.writer"
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$DEPLOYER_SA" --role="roles/storage.admin"
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$DEPLOYER_SA" --role="roles/secretmanager.admin"
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$DEPLOYER_SA" --role="roles/datastore.user"
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$DEPLOYER_SA" --role="roles/serviceusage.serviceUsageConsumer"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$RUNTIME_SA" --role="roles/datastore.user"
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$RUNTIME_SA" --role="roles/secretmanager.secretAccessor"
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$RUNTIME_SA" --role="roles/storage.objectAdmin"
+
+gcloud artifacts repositories create $ARTIFACT_REGISTRY --repository-format=docker --location=$REGION --description="Docker images do TekAttend"
+
+gcloud storage buckets create gs://$ASSETS_BUCKET --location=$REGION --uniform-bucket-level-access
+gcloud storage buckets create gs://$EXPORTS_BUCKET --location=$REGION --uniform-bucket-level-access
+
+gcloud secrets create tekattend-jwt-secret --replication-policy=automatic
+gcloud secrets create tekattend-admin-bootstrap-password --replication-policy=automatic
+
+gcloud iam workload-identity-pools create $POOL_ID --project=$PROJECT_ID --location=global --display-name="GitHub Actions Pool"
+
+gcloud iam workload-identity-pools providers create-oidc $PROVIDER_ID --project=$PROJECT_ID --location=global --workload-identity-pool=$POOL_ID --display-name="GitHub Provider" --issuer-uri="https://token.actions.githubusercontent.com" --attribute-mapping="google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.repository=assertion.repository,attribute.repository_owner=assertion.repository_owner,attribute.ref=assertion.ref" --attribute-condition="assertion.repository=='$REPO'"
+
+gcloud iam service-accounts add-iam-policy-binding $DEPLOYER_SA --role="roles/iam.workloadIdentityUser" --member="principalSet://iam.googleapis.com/$POOL_RESOURCE/attribute.repository/$REPO"
+
+gh variable set GCP_PROJECT_ID --repo $REPO --body $PROJECT_ID
+gh variable set GCP_PROJECT_NUMBER --repo $REPO --body $PROJECT_NUMBER
+gh variable set GCP_REGION --repo $REPO --body $REGION
+gh variable set GCP_ARTIFACT_REGISTRY --repo $REPO --body $ARTIFACT_REGISTRY
+gh variable set GCP_WIF_PROVIDER --repo $REPO --body "$POOL_RESOURCE/providers/$PROVIDER_ID"
+gh variable set GCP_DEPLOYER_SA --repo $REPO --body $DEPLOYER_SA
+gh variable set GCP_RUNTIME_SA --repo $REPO --body $RUNTIME_SA
+gh variable set GCP_ASSETS_BUCKET --repo $REPO --body $ASSETS_BUCKET
+gh variable set GCP_EXPORTS_BUCKET --repo $REPO --body $EXPORTS_BUCKET
+gh variable set CLOUD_RUN_SERVICE --repo $REPO --body "tekattend-api"
+gh variable set DOCKER_IMAGE_NAME --repo $REPO --body "tekattend-api"
+gh variable set APP_DOMAIN --repo $REPO --body "www.tekattend.tekforge.com.br"
+gh variable set API_DOMAIN --repo $REPO --body "api.tekattend.tekforge.com.br"
+gh variable set FIRESTORE_DATABASE --repo $REPO --body "(default)"
+
+echo 'cG6br6jyPd1d7iZg0fgueX' | gcloud secrets versions add tekattend-jwt-secret --data-file=-
+echo 'Sulaco@2026' | gcloud secrets versions add tekattend-admin-bootstrap-password --data-file=-
+
+gcloud iam workload-identity-pools describe $POOL_ID --project=$PROJECT_ID --location=global
+gcloud iam workload-identity-pools providers describe $PROVIDER_ID --project=$PROJECT_ID --location=global --workload-identity-pool=$POOL_ID
+gh variable list --repo $REPO
