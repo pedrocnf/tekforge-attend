@@ -1,17 +1,11 @@
 from fastapi import HTTPException, status
-
 from app.repositories.teacher_role_request_repository import TeacherRoleRequestRepository
 from app.repositories.user_repository import UserRepository
 
-
 class TeacherRoleRequestService:
-    def __init__(
-        self,
-        request_repo: TeacherRoleRequestRepository | None = None,
-        user_repo: UserRepository | None = None,
-    ) -> None:
-        self.request_repo = request_repo or TeacherRoleRequestRepository()
-        self.user_repo = user_repo or UserRepository()
+    def __init__(self) -> None:
+        self.request_repo = TeacherRoleRequestRepository()
+        self.user_repo = UserRepository()
 
     def create_request(self, user: dict, justification: str) -> dict:
         if user["role"] in {"teacher", "admin"}:
@@ -27,23 +21,15 @@ class TeacherRoleRequestService:
         request = self.request_repo.get_by_id(request_id)
         if not request:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
-        if request["status"] != "pending":
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Request already reviewed")
-
         self.user_repo.update_role(request["user_id"], "teacher")
-        self.request_repo.review(request_id=request_id, status="approved", reviewed_by=admin_user["id"])
-        request["status"] = "approved"
-        request["reviewed_by"] = admin_user["id"]
+        self.request_repo.review(request_id, "approved", admin_user["id"])
+        request["status"] = "approved"; request["reviewed_by"] = admin_user["id"]
         return request
 
     def deny(self, request_id: str, admin_user: dict) -> dict:
         request = self.request_repo.get_by_id(request_id)
         if not request:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
-        if request["status"] != "pending":
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Request already reviewed")
-
-        self.request_repo.review(request_id=request_id, status="denied", reviewed_by=admin_user["id"])
-        request["status"] = "denied"
-        request["reviewed_by"] = admin_user["id"]
+        self.request_repo.review(request_id, "denied", admin_user["id"])
+        request["status"] = "denied"; request["reviewed_by"] = admin_user["id"]
         return request
