@@ -1,10 +1,8 @@
 from datetime import datetime
 from pydantic import BaseModel, Field
 
-
 class TeacherRoleRequestCreate(BaseModel):
     justification: str = Field(min_length=5, max_length=1000)
-
 
 class TeacherRoleRequestResponse(BaseModel):
     id: str

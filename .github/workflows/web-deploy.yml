@@ -7,20 +7,48 @@ on:
       - "web/**"
       - ".github/workflows/web-deploy.yml"
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
-  build-web:
+  deploy-web:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web
+    env:
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      REGION: ${{ vars.GCP_REGION }}
+      ARTIFACT_REGISTRY: ${{ vars.GCP_ARTIFACT_REGISTRY }}
+      WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+      DEPLOYER_SA: ${{ vars.GCP_DEPLOYER_SA }}
+      CLOUD_RUN_SERVICE: tekattend-web
+      DOCKER_IMAGE_NAME: tekattend-web
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - uses: google-github-actions/auth@v2
         with:
-          node-version: "20"
-      - name: Install deps
-        run: npm ci || npm install
-      - name: Build
-        run: npm run build --if-present
-      - name: Notice
-        run: echo "Deploy automático do frontend pode ser ligado depois com Firebase Hosting ou Cloud Run estático."
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.DEPLOYER_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker auth
+        run: gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+
+      - name: Build image
+        run: |
+          IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY}/${DOCKER_IMAGE_NAME}:${GITHUB_SHA}"
+          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+          docker build -t "$IMAGE_URI" web
+
+      - name: Push image
+        run: docker push "$IMAGE_URI"
+
+      - name: Deploy Cloud Run
+        run: |
+          gcloud run deploy "$CLOUD_RUN_SERVICE" \
+            --image "$IMAGE_URI" \
+            --region "$REGION" \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8080

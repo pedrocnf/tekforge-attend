@@ -1,26 +1,11 @@
-# TekAttend backend auth patch
+# TekAttend full application package
 
-## Conteúdo
-- signup de aluno
-- login JWT
-- `/auth/me`
-- solicitação de perfil professor
-- listagem/aprovação/negação por admin
-- bootstrap opcional do primeiro admin
+Este pacote inclui:
+- backend com auth, academic e attendance
+- frontend React para operar tudo pelo navegador
 
-## Variáveis novas
-- `JWT_ALGORITHM`
-- `JWT_EXPIRE_MINUTES`
-- `ADMIN_BOOTSTRAP_USERNAME`
-- `ADMIN_BOOTSTRAP_EMAIL`
-- `ENABLE_ADMIN_BOOTSTRAP`
-
-## Fluxo sugerido
-1. Copiar a pasta `backend/` para o repo
-2. Commitar e dar push
-3. Esperar deploy
-4. Popular secrets/variáveis
-5. Fazer bootstrap do admin temporariamente com:
-   - `ENABLE_ADMIN_BOOTSTRAP=true`
-   - `POST /admin/bootstrap?password=<ADMIN_BOOTSTRAP_PASSWORD>`
-6. Desligar bootstrap depois
+Fluxo:
+1. copiar backend e web para o repo
+2. commitar e fazer push
+3. abrir a UI web
+4. testar login, disciplinas, turmas, matrículas e chamadas
