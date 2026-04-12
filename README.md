@@ -1,11 +1,19 @@
-# TekAttend full application package
+# Attend
 
-Este pacote inclui:
-- backend com auth, academic e attendance
-- frontend React para operar tudo pelo navegador
+Aplicação pública: **Attend**
+Repositório técnico: `tekforge-attend`
 
-Fluxo:
-1. copiar backend e web para o repo
-2. commitar e fazer push
-3. abrir a UI web
-4. testar login, disciplinas, turmas, matrículas e chamadas
+## Implementado
+- autenticação JWT
+- primeiro acesso e recuperação de senha
+- verificação de email
+- instituições
+- disciplinas com agenda semanal
+- alunos e importação Excel
+- envio opcional de email no cadastro do aluno
+- matrículas
+- abertura e fechamento de chamadas
+- fila de solicitações em tempo real
+- confirmação/negação de presença
+- ausência automática ao fechar chamada
+- frontend React para operar tudo no navegador

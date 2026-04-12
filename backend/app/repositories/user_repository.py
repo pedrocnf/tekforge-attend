@@ -1,55 +1,33 @@
 from datetime import datetime, timezone
-from typing import Any
+from app.repositories.base import BaseRepository
 
-from google.cloud.firestore import Client
-
-from app.core.firestore import get_firestore_client
-
-
-class UserRepository:
-    def __init__(self, client: Client | None = None) -> None:
-        self.client = client or get_firestore_client()
-        self.collection = self.client.collection("users")
-
-    def get_by_username(self, username: str) -> dict[str, Any] | None:
+class UserRepository(BaseRepository):
+    collection_name = "users"
+    def get_by_username(self, username: str):
         docs = list(self.collection.where("username", "==", username).limit(1).stream())
-        if not docs:
-            return None
-        data = docs[0].to_dict()
-        data["id"] = docs[0].id
-        return data
-
-    def get_by_email(self, email: str) -> dict[str, Any] | None:
+        if not docs: return None
+        d = docs[0].to_dict(); d["id"] = docs[0].id
+        return d
+    def get_by_email(self, email: str):
         docs = list(self.collection.where("email", "==", email).limit(1).stream())
-        if not docs:
-            return None
-        data = docs[0].to_dict()
-        data["id"] = docs[0].id
-        return data
-
-    def get_by_id(self, user_id: str) -> dict[str, Any] | None:
-        doc = self.collection.document(user_id).get()
-        if not doc.exists:
-            return None
-        data = doc.to_dict()
-        data["id"] = doc.id
-        return data
-
-    def create(self, payload: dict[str, Any]) -> dict[str, Any]:
-        now = datetime.now(timezone.utc)
-        doc_ref = self.collection.document()
-        record = {
+        if not docs: return None
+        d = docs[0].to_dict(); d["id"] = docs[0].id
+        return d
+    def create(self, payload: dict):
+        payload = {
             "username": payload["username"],
             "password_hash": payload["password_hash"],
             "full_name": payload["full_name"],
             "email": payload["email"],
             "role": payload["role"],
             "is_active": True,
-            "created_at": now,
+            "is_email_verified": payload.get("is_email_verified", False),
+            "created_at": datetime.now(timezone.utc),
         }
-        doc_ref.set(record)
-        record["id"] = doc_ref.id
-        return record
-
+        return super().create(payload)
     def update_role(self, user_id: str, role: str) -> None:
         self.collection.document(user_id).update({"role": role})
+    def verify_email(self, user_id: str) -> None:
+        self.collection.document(user_id).update({"is_email_verified": True})
+    def update_password(self, user_id: str, password_hash: str) -> None:
+        self.collection.document(user_id).update({"password_hash": password_hash, "is_email_verified": False})
