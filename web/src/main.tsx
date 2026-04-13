@@ -1,55 +1,20 @@
-import React, { useEffect, useState } from "react";
-import ReactDOM from "react-dom/client";
-const API_BASE = "https://tekattend-api-772785199121.us-central1.run.app";
-async function api(path: string, options: RequestInit = {}, token?: string) {
-  const headers: Record<string, string> = { ...(options.headers as any || {}) };
-  if (!(options.body instanceof FormData)) headers["Content-Type"] = "application/json";
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
-  const text = await res.text(); const data = text ? JSON.parse(text) : null; if (!res.ok) throw new Error(data?.detail || `HTTP ${res.status}`); return data;
-}
-const box=(c:any={})=>({background:"white",borderRadius:24,padding:20,boxShadow:"0 10px 30px rgba(15,23,42,0.08)",...c});
-const input=(c:any={})=>({width:"100%",padding:12,borderRadius:14,border:"1px solid #d9e2ec",...c});
-function App(){
-  const [token,setToken]=useState(localStorage.getItem("attend_token")||""); const [me,setMe]=useState<any>(null); const [msg,setMsg]=useState(""); const [err,setErr]=useState("");
-  const [login,setLogin]=useState({username:"admin",password:"Sulaco2026"});
-  const [institutions,setInstitutions]=useState<any[]>([]); const [disciplines,setDisciplines]=useState<any[]>([]); const [students,setStudents]=useState<any[]>([]); const [events,setEvents]=useState<any[]>([]); const [requests,setRequests]=useState<any[]>([]); const [selectedEvent,setSelectedEvent]=useState("");
-  const [institutionForm,setInstitutionForm]=useState({name:"",cep:"",street:"",number:"",complement:"",district:"",city:"",state:""});
-  const [disciplineForm,setDisciplineForm]=useState({name:"",institution_id:"",semester:"2026-1",academic_shift:"A",period_label:"Noturno",weekly_meetings:[{weekday:"Segunda",start_time:"19:00",end_time:"20:40"}],total_workload_hours:60,weekly_lessons_count:2,lesson_duration_minutes:100});
-  const [studentForm,setStudentForm]=useState({full_name:"",class_name:"",cpf:"",email:"",phone:"",username:"",send_email:true});
-  const [enrollmentForm,setEnrollmentForm]=useState({student_user_id:"",discipline_id:""});
-  const [eventForm,setEventForm]=useState({discipline_id:"",title:"",lesson_date:"",lesson_time:"",allow_remote_requests:true});
-  const [requestForm,setRequestForm]=useState({event_id:"",channel:"web",stars:5,tags:"presencial",comments:""});
-  useEffect(()=>{ if(token){ localStorage.setItem("attend_token", token); load(); }},[token]);
-  useEffect(()=>{ if(selectedEvent && token) api(`/attendance/events/${selectedEvent}/requests`,{},token).then(setRequests).catch((e)=>setErr(e.message));},[selectedEvent]);
-  async function load(){ try{ const meData=await api("/auth/me",{},token); setMe(meData); const [i,d,s,e]=await Promise.all([api("/institutions",{},token),api("/disciplines",{},token),api("/students",{},token),api("/attendance/events",{},token)]); setInstitutions(i); setDisciplines(d); setStudents(s); setEvents(e); if(e.length) setSelectedEvent(e[0].id);}catch(e:any){setErr(e.message);} }
-  async function doLogin(){ setErr(""); setMsg(""); try{ const r=await api("/auth/login",{method:"POST",body:JSON.stringify(login)}); setToken(r.access_token); setMsg("Login realizado."); }catch(e:any){setErr(e.message);} }
-  async function createInstitution(){ await api("/institutions",{method:"POST",body:JSON.stringify(institutionForm)},token); setMsg("Instituição criada."); load(); }
-  async function createDiscipline(){ await api("/disciplines",{method:"POST",body:JSON.stringify(disciplineForm)},token); setMsg("Disciplina criada."); load(); }
-  async function createStudent(){ const r=await api("/students",{method:"POST",body:JSON.stringify(studentForm)},token); setEnrollmentForm((p:any)=>({...p,student_user_id:r.user_id})); setMsg("Aluno criado."); load(); }
-  async function createEnrollment(){ await api("/enrollments",{method:"POST",body:JSON.stringify(enrollmentForm)},token); setMsg("Matrícula criada."); }
-  async function createEvent(){ const r=await api("/attendance/events",{method:"POST",body:JSON.stringify(eventForm)},token); setSelectedEvent(r.id); setRequestForm((p:any)=>({...p,event_id:r.id})); setMsg("Chamada aberta."); load(); }
-  async function createRequest(){ await api("/attendance/requests",{method:"POST",body:JSON.stringify({...requestForm,tags:String(requestForm.tags).split(",").map((x:string)=>x.trim()).filter(Boolean)})},token); setMsg("Solicitação enviada."); if(selectedEvent) setRequests(await api(`/attendance/events/${selectedEvent}/requests`,{},token)); }
-  async function review(id:string, status:string){ await api(`/attendance/requests/${id}/review`,{method:"POST",body:JSON.stringify({status})},token); setMsg("Solicitação atualizada."); if(selectedEvent) setRequests(await api(`/attendance/events/${selectedEvent}/requests`,{},token)); }
-  async function closeEvent(id:string){ await api(`/attendance/events/${id}/close`,{method:"POST"},token); setMsg("Chamada encerrada."); load(); }
-  return <div style={{minHeight:"100vh",background:"#f5f7fb",fontFamily:"Inter, Arial, sans-serif",color:"#0f172a"}}><div style={{maxWidth:1440,margin:"0 auto",padding:24}}>
-    <header style={{...box(),marginBottom:20}}><div style={{fontSize:12,color:"#64748b",letterSpacing:2,textTransform:"uppercase"}}>Tekforge ecosystem</div><h1 style={{margin:"8px 0",fontSize:36}}>Attend</h1><p style={{margin:0,maxWidth:900,color:"#475569"}}>Fluxo completo de instituições, disciplinas, alunos, importação, matrícula e presença em tempo real.</p></header>
-    {(err||msg)&&<div style={{marginBottom:16,padding:14,borderRadius:16,background:err?"#fee2e2":"#dcfce7",color:err?"#991b1b":"#166534"}}>{err||msg}</div>}
-    {!token ? <div style={{...box(),maxWidth:420}}><h3>Entrar</h3><input style={input()} value={login.username} onChange={e=>setLogin({...login,username:e.target.value})} placeholder="Usuário" /><div style={{height:12}}/><input style={input()} type="password" value={login.password} onChange={e=>setLogin({...login,password:e.target.value})} placeholder="Senha" /><div style={{height:12}}/><button style={{padding:"12px 16px",borderRadius:14,border:"none",background:"#0f172a",color:"white"}} onClick={doLogin}>Entrar</button></div> : <>
-      <div style={{display:"grid",gap:16,gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",marginBottom:20}}>{[["Usuário",me?.username||"-"],["Perfil",me?.role||"-"],["Instituições",institutions.length],["Disciplinas",disciplines.length],["Alunos",students.length],["Chamadas",events.length]].map(([l,v])=><div key={String(l)} style={box()}><div style={{fontSize:13,color:"#64748b"}}>{l}</div><div style={{fontSize:28,fontWeight:700,marginTop:8}}>{String(v)}</div></div>)}</div>
-      <div style={{display:"grid",gap:20,gridTemplateColumns:"1fr 1fr"}}>
-        <section style={box()}><h3>1. Instituição</h3><div style={{display:"grid",gap:10}}>{["name","cep","street","number","complement","district","city","state"].map((k)=><input key={k} style={input()} value={(institutionForm as any)[k]} onChange={e=>setInstitutionForm({...institutionForm,[k]:e.target.value})} placeholder={k} />)}<button style={{padding:"12px 16px",borderRadius:14,border:"none",background:"#0f172a",color:"white"}} onClick={()=>createInstitution().catch((e:any)=>setErr(e.message))}>Salvar instituição</button></div></section>
-        <section style={box()}><h3>2. Disciplina</h3><div style={{display:"grid",gap:10}}><input style={input()} value={disciplineForm.name} onChange={e=>setDisciplineForm({...disciplineForm,name:e.target.value})} placeholder="Nome" /><select style={input()} value={disciplineForm.institution_id} onChange={e=>setDisciplineForm({...disciplineForm,institution_id:e.target.value})}><option value="">Instituição</option>{institutions.map((i:any)=><option key={i.id} value={i.id}>{i.name}</option>)}</select><input style={input()} value={disciplineForm.semester} onChange={e=>setDisciplineForm({...disciplineForm,semester:e.target.value})} placeholder="Semestre" /><input style={input()} value={disciplineForm.period_label} onChange={e=>setDisciplineForm({...disciplineForm,period_label:e.target.value})} placeholder="Período" /><button style={{padding:"12px 16px",borderRadius:14,border:"none",background:"#0f172a",color:"white"}} onClick={()=>createDiscipline().catch((e:any)=>setErr(e.message))}>Salvar disciplina</button></div></section>
-        <section style={box()}><h3>3. Aluno</h3><div style={{display:"grid",gap:10}}>{["full_name","class_name","cpf","email","phone","username"].map((k)=><input key={k} style={input()} value={(studentForm as any)[k]} onChange={e=>setStudentForm({...studentForm,[k]:e.target.value})} placeholder={k} />)}<label><input type="checkbox" checked={studentForm.send_email} onChange={e=>setStudentForm({...studentForm,send_email:e.target.checked})} /> enviar email</label><button style={{padding:"12px 16px",borderRadius:14,border:"none",background:"#0f172a",color:"white"}} onClick={()=>createStudent().catch((e:any)=>setErr(e.message))}>Salvar aluno</button></div></section>
-        <section style={box()}><h3>4. Matrícula</h3><div style={{display:"grid",gap:10}}><select style={input()} value={enrollmentForm.student_user_id} onChange={e=>setEnrollmentForm({...enrollmentForm,student_user_id:e.target.value})}><option value="">Aluno</option>{students.map((s:any)=><option key={s.id} value={s.user_id}>{s.full_name}</option>)}</select><select style={input()} value={enrollmentForm.discipline_id} onChange={e=>setEnrollmentForm({...enrollmentForm,discipline_id:e.target.value})}><option value="">Disciplina</option>{disciplines.map((d:any)=><option key={d.id} value={d.id}>{d.name}</option>)}</select><button style={{padding:"12px 16px",borderRadius:14,border:"none",background:"#0f172a",color:"white"}} onClick={()=>createEnrollment().catch((e:any)=>setErr(e.message))}>Salvar matrícula</button></div></section>
-        <section style={box()}><h3>5. Abrir chamada</h3><div style={{display:"grid",gap:10}}><select style={input()} value={eventForm.discipline_id} onChange={e=>setEventForm({...eventForm,discipline_id:e.target.value})}><option value="">Disciplina</option>{disciplines.map((d:any)=><option key={d.id} value={d.id}>{d.name}</option>)}</select><input style={input()} value={eventForm.title} onChange={e=>setEventForm({...eventForm,title:e.target.value})} placeholder="Título" /><input style={input()} value={eventForm.lesson_date} onChange={e=>setEventForm({...eventForm,lesson_date:e.target.value})} placeholder="Data" /><input style={input()} value={eventForm.lesson_time} onChange={e=>setEventForm({...eventForm,lesson_time:e.target.value})} placeholder="Hora" /><button style={{padding:"12px 16px",borderRadius:14,border:"none",background:"#0f172a",color:"white"}} onClick={()=>createEvent().catch((e:any)=>setErr(e.message))}>Abrir chamada</button></div></section>
-        <section style={box()}><h3>6. Solicitação do aluno</h3><div style={{display:"grid",gap:10}}><select style={input()} value={requestForm.event_id} onChange={e=>setRequestForm({...requestForm,event_id:e.target.value})}><option value="">Chamada</option>{events.map((ev:any)=><option key={ev.id} value={ev.id}>{ev.title}</option>)}</select><input style={input()} value={requestForm.channel} onChange={e=>setRequestForm({...requestForm,channel:e.target.value})} placeholder="Canal" /><input style={input()} type="number" value={requestForm.stars} onChange={e=>setRequestForm({...requestForm,stars:Number(e.target.value)})} placeholder="Estrelas" /><input style={input()} value={requestForm.tags} onChange={e=>setRequestForm({...requestForm,tags:e.target.value})} placeholder="Tags" /><textarea style={{...input(),minHeight:80}} value={requestForm.comments} onChange={e=>setRequestForm({...requestForm,comments:e.target.value})} placeholder="Comentários" /><button style={{padding:"12px 16px",borderRadius:14,border:"none",background:"#0f172a",color:"white"}} onClick={()=>createRequest().catch((e:any)=>setErr(e.message))}>Enviar solicitação</button></div></section>
-      </div>
-      <div style={{display:"grid",gap:20,gridTemplateColumns:"1fr 1fr",marginTop:20}}>
-        <section style={box()}><h3>Chamadas</h3><div style={{display:"grid",gap:10}}>{events.map((e:any)=><div key={e.id} style={{padding:12,border:selectedEvent===e.id?"2px solid #0f172a":"1px solid #e2e8f0",borderRadius:14}}><div style={{display:"flex",justifyContent:"space-between",gap:8}}><div onClick={()=>setSelectedEvent(e.id)} style={{cursor:"pointer"}}><strong>{e.title}</strong><div style={{fontSize:13,color:"#64748b"}}>{e.lesson_date} • {e.lesson_time}</div></div>{e.status==="open"&&<button onClick={()=>closeEvent(e.id).catch((er:any)=>setErr(er.message))}>Fechar</button>}</div></div>)}</div></section>
-        <section style={box()}><h3>Fila de confirmação</h3><div style={{display:"grid",gap:10}}>{requests.map((r:any)=><div key={r.id} style={{padding:12,border:"1px solid #e2e8f0",borderRadius:14}}><strong>{r.student_user_id}</strong><div style={{fontSize:13,color:"#64748b"}}>Status: {r.status} • Canal: {r.channel}</div>{r.status==="pending"&&<div style={{display:"flex",gap:8,marginTop:8}}><button onClick={()=>review(r.id,"confirmed").catch((e:any)=>setErr(e.message))}>Confirmar</button><button onClick={()=>review(r.id,"denied").catch((e:any)=>setErr(e.message))}>Negar</button></div>}</div>)}{!requests.length&&<div>Nenhuma solicitação.</div>}</div></section>
-      </div>
-    </>}
-  </div></div>
-}
-ReactDOM.createRoot(document.getElementById("root")!).render(<React.StrictMode><App /></React.StrictMode>);
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import { CssBaseline, ThemeProvider } from '@mui/material';
+import App from './App';
+import { appTheme } from './theme';
+import { AuthProvider } from './context/AuthContext';
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <ThemeProvider theme={appTheme}>
+      <CssBaseline />
+      <BrowserRouter>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </BrowserRouter>
+    </ThemeProvider>
+  </React.StrictMode>,
+);
