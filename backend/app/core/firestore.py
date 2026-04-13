@@ -7,5 +7,6 @@ _client: firestore.Client | None = None
 def get_firestore_client() -> firestore.Client:
     global _client
     if _client is None:
+        # Explicit project binding to match current GCP infra
         _client = firestore.Client(project=settings.gcp_project_id)
     return _client
